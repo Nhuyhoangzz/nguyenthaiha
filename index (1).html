@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>❤️</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+
+function resize() {
+  cv.width = window.innerWidth;
+  cv.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+const hx = (t, s) => s * 16 * Math.pow(Math.sin(t), 3);
+const hy = (t, s) => -s * (13*Math.cos(t) - 5*Math.cos(2*t) - 2*Math.cos(3*t) - Math.cos(4*t));
+
+class InnerFiber {
+  constructor() { this.init(); }
+  init() {
+    const bs = Math.min(cv.width, cv.height) * 0.034;
+    const t1 = Math.random() * Math.PI * 2;
+    const t2 = t1 + 0.4 + Math.random() * Math.PI * 1.6;
+    this.p1t = t1; this.p2t = t2;
+    this.r1 = 0.2 + Math.random() * 0.95;
+    this.r2 = 0.2 + Math.random() * 0.95;
+    this.bs = bs;
+    const angle = Math.random() * Math.PI * 2;
+    const dist = bs * (0.3 + Math.random() * 2.5);
+    this.cpOff = { x: Math.cos(angle)*dist, y: Math.sin(angle)*dist };
+    this.hue = 345 + Math.random() * 20;
+    this.sat = 85 + Math.random() * 15;
+    this.bright = 25 + Math.random() * 55;
+    this.baseAlpha = 0.04 + Math.random() * 0.22;
+    this.width = 0.25 + Math.random() * 1.1;
+    this.life = Math.random() * 200;
+    this.maxLife = 100 + Math.random() * 200;
+    this.flickerSpeed = 0.02 + Math.random() * 0.05;
+    this.flickerPhase = Math.random() * Math.PI * 2;
+  }
+  draw(beat) {
+    this.life++;
+    if (this.life > this.maxLife) this.init();
+    const prog = (this.life % this.maxLife) / this.maxLife;
+    let a = this.baseAlpha;
+    if (prog < 0.1) a *= prog / 0.1;
+    if (prog > 0.8) a *= (1 - prog) / 0.2;
+    a *= 0.6 + 0.4 * Math.sin(this.flickerPhase + this.life * this.flickerSpeed);
+    const cx2 = cv.width/2, cy2 = cv.height/2;
+    const s = this.bs * beat;
+    const x1 = cx2 + hx(this.p1t, s * this.r1);
+    const y1 = cy2 + hy(this.p1t, s * this.r1);
+    const x2 = cx2 + hx(this.p2t, s * this.r2);
+    const y2 = cy2 + hy(this.p2t, s * this.r2);
+    const mx = (x1+x2)/2 + this.cpOff.x * beat;
+    const my = (y1+y2)/2 + this.cpOff.y * beat;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.strokeStyle = `hsl(${this.hue},${this.sat}%,${this.bright}%)`;
+    ctx.lineWidth = this.width;
+    ctx.shadowColor = `hsl(${this.hue},100%,50%)`;
+    ctx.shadowBlur = 3 + beat * 2;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.quadraticCurveTo(mx, my, x2, y2);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+class EdgeFiber {
+  constructor() { this.init(); }
+  init() {
+    this.t = Math.random() * Math.PI * 2;
+    this.arcLen = 0.15 + Math.random() * 1.2;
+    this.dir = Math.random() < 0.5 ? 1 : -1;
+    this.speed = this.dir * (0.006 + Math.random() * 0.018);
+    const bs = Math.min(cv.width, cv.height) * 0.034;
+    this.scale = bs * (0.82 + Math.random() * 0.32);
+    const bright = 30 + Math.random() * 55;
+    this.color = `hsl(${345 + Math.random()*18},100%,${bright}%)`;
+    this.glowColor = `hsl(348,100%,55%)`;
+    this.alpha = 0.12 + Math.random() * 0.45;
+    this.width = 0.3 + Math.random() * 1.6;
+    this.life = Math.random() * 150;
+    this.maxLife = 80 + Math.random() * 180;
+    this.flickerPhase = Math.random() * Math.PI * 2;
+  }
+  draw(beat) {
+    this.life++;
+    this.t += this.speed;
+    if (this.life > this.maxLife) this.init();
+    const prog = (this.life % this.maxLife) / this.maxLife;
+    let a = this.alpha;
+    if (prog < 0.08) a *= prog / 0.08;
+    if (prog > 0.82) a *= (1-prog) / 0.18;
+    a *= 0.65 + 0.35 * Math.sin(this.flickerPhase + this.life * 0.04);
+    const cx2 = cv.width/2, cy2 = cv.height/2;
+    const s = this.scale * beat;
+    const steps = 40;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = this.width * (0.8 + beat * 0.4);
+    ctx.shadowColor = this.glowColor;
+    ctx.shadowBlur = 5 + beat * 4;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (let i = 0; i <= steps; i++) {
+      const tt = this.t + (i / steps) * this.arcLen * this.dir;
+      const wobble = 0.97 + 0.06 * Math.sin(this.flickerPhase + i * 0.4);
+      const x = cx2 + hx(tt, s * wobble);
+      const y = cy2 + hy(tt, s * wobble);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+class Spark {
+  constructor() { this.active = false; }
+  fire() {
+    const bs = Math.min(cv.width, cv.height) * 0.034;
+    const t = Math.random() * Math.PI * 2;
+    const cx2 = cv.width/2, cy2 = cv.height/2;
+    this.x = cx2 + hx(t, bs);
+    this.y = cy2 + hy(t, bs);
+    const angle = Math.atan2(this.y - cy2, this.x - cx2);
+    const speed = 1.5 + Math.random() * 3.5;
+    this.vx = Math.cos(angle) * speed;
+    this.vy = Math.sin(angle) * speed;
+    this.life = 0;
+    this.maxLife = 18 + Math.random() * 20;
+    this.size = 0.8 + Math.random() * 1.8;
+    this.color = `hsl(${342 + Math.random()*20},100%,${55 + Math.random()*35}%)`;
+    this.active = true;
+  }
+  draw() {
+    if (!this.active) return;
+    this.life++;
+    if (this.life > this.maxLife) { this.active = false; return; }
+    this.x += this.vx; this.y += this.vy;
+    this.vx *= 0.93; this.vy *= 0.93;
+    const a = (1 - this.life / this.maxLife) * 0.9;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = this.color;
+    ctx.shadowColor = this.color;
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+class PulseRing {
+  constructor() { this.active = false; }
+  fire() {
+    this.cx = cv.width/2; this.cy = cv.height/2;
+    this.r = 0;
+    this.maxR = Math.min(cv.width, cv.height) * 0.38;
+    this.life = 0; this.maxLife = 35;
+    this.active = true;
+  }
+  draw() {
+    if (!this.active) return;
+    this.life++;
+    this.r = (this.life / this.maxLife) * this.maxR;
+    if (this.life > this.maxLife) { this.active = false; return; }
+    const a = (1 - this.life / this.maxLife) * 0.18;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.strokeStyle = `rgba(220,20,50,1)`;
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = 'rgba(255,30,60,0.8)';
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.arc(this.cx, this.cy, this.r, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+const innerFibers = Array.from({length: 280}, () => new InnerFiber());
+const edgeFibers  = Array.from({length: 160}, () => new EdgeFiber());
+const sparks      = Array.from({length: 80},  () => new Spark());
+const rings       = [new PulseRing(), new PulseRing(), new PulseRing()];
+
+let beatFrame = 0;
+function getBeat() {
+  const period = 55;
+  const t = (beatFrame % period) / period;
+  if (t < 0.08)  return 1 + 0.16 * Math.sin(t / 0.08 * Math.PI);
+  if (t < 0.19)  return 1 + 0.08 * Math.sin((t - 0.08) / 0.11 * Math.PI);
+  return 1.0;
+}
+
+function drawHeartGlow(beat) {
+  const cx2 = cv.width/2, cy2 = cv.height/2;
+  const s = Math.min(cv.width, cv.height) * 0.034 * beat;
+  ctx.save();
+  ctx.beginPath();
+  for (let i = 0; i <= 300; i++) {
+    const t = i/300*Math.PI*2;
+    const x = cx2+hx(t,s), y = cy2+hy(t,s);
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  }
+  ctx.closePath();
+  const g = ctx.createRadialGradient(cx2,cy2-s*1.5,s*0.2,cx2,cy2,s*8.5);
+  g.addColorStop(0,    `rgba(160,0,20,${0.18*beat})`);
+  g.addColorStop(0.35, `rgba(100,0,12,${0.10*beat})`);
+  g.addColorStop(0.7,  `rgba(50,0,6,0.04)`);
+  g.addColorStop(1,    'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = `rgba(200,10,35,${0.15*beat})`;
+  ctx.lineWidth = 1.2*beat;
+  ctx.shadowColor = `rgba(230,20,50,0.7)`;
+  ctx.shadowBlur = 25*beat;
+  ctx.stroke();
+  ctx.restore();
+}
+
+let prevBeat = 1.0, lastPeak = 1.0;
+function drawFlash(beat) {
+  const rising = beat > prevBeat && beat > 1.05;
+  if (rising) {
+    const power = (beat - 1.0) / 0.16;
+    const cx2 = cv.width/2, cy2 = cv.height/2;
+    ctx.save();
+    ctx.globalAlpha = power * 0.22;
+    const fl = ctx.createRadialGradient(cx2,cy2,5,cx2,cy2,Math.min(cv.width,cv.height)*0.42);
+    fl.addColorStop(0,   'rgba(255,30,55,1)');
+    fl.addColorStop(0.5, 'rgba(180,10,30,0.5)');
+    fl.addColorStop(1,   'rgba(0,0,0,0)');
+    ctx.fillStyle = fl;
+    ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.restore();
+    if (power > 0.6 && prevBeat <= lastPeak) {
+      for (let i = 0; i < 12; i++) {
+        const sp = sparks.find(s => !s.active);
+        if (sp) sp.fire();
+      }
+      const rg = rings.find(r => !r.active);
+      if (rg) rg.fire();
+    }
+  }
+  lastPeak = beat > 1.05 ? beat : lastPeak;
+  prevBeat = beat;
+}
+
+function loop() {
+  requestAnimationFrame(loop);
+  beatFrame++;
+  const beat = getBeat();
+  ctx.fillStyle = 'rgba(0,0,0,0.11)';
+  ctx.fillRect(0,0,cv.width,cv.height);
+  drawHeartGlow(beat);
+  innerFibers.forEach(f => f.draw(beat));
+  edgeFibers.forEach(e  => e.draw(beat));
+  sparks.forEach(s      => s.draw());
+  rings.forEach(r       => r.draw());
+  drawFlash(beat);
+}
+
+loop();
+</script>
+</body>
+</html>
